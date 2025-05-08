@@ -1,4 +1,5 @@
 packages:
-  - 'typescript/package'
-  - 'typescript/example'
-  - 'typescript/facilitator'
+  - "typescript/package"
+  - "typescript/facilitator"
+  - "examples/react"
+  - "examples/html5"

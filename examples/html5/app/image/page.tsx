@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Image from "next/image";
 
 export default function ImagePage() {
   const [status, setStatus] = useState<"loading" | "error" | "success">(
@@ -66,7 +67,7 @@ function ImageComponent({
     hasStartedFetchingRef.current = true;
 
     const checkImage = () => {
-      const img = new Image();
+      const img = document.createElement('img'); // Create an HTMLImageElement
       const maximumAttempts = 60;
 
       img.onload = () => {
@@ -118,11 +119,14 @@ function ImageComponent({
   return (
     <div className="flex items-center justify-center min-h-screen bg-black relative">
       <div className="relative w-full h-full flex items-center justify-center p-4">
-        {/* Replace Image component with a more reliable approach */}
-        <img
+        {/* Using Next.js Image component for better performance */}
+        <Image
           src={`/uploads/${filename}?t=${Date.now()}`}
           alt="AI Generated Image"
+          width={1024}
+          height={1024}
           className="max-w-full max-h-[90vh] object-contain"
+          priority
         />
         {/* Debug information */}
         <div className="absolute bottom-2 left-2 text-white text-xs opacity-50">

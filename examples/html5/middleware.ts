@@ -5,7 +5,7 @@ import { NextResponse, NextRequest } from "next/server";
 // Define the middleware configuration
 const middlewareConfig = {
   routes: ["/"],
-  paywallRoute: "/",
+  // No paywallRoute specified - will use the built-in HTML5 paywall
   paymentDetails,
 };
 

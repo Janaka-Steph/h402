@@ -5,10 +5,10 @@ type PaymentDetails = {
   namespace: string | null;
   // Network of the blockchain to send payment on
   networkId: string;
-  // Amount required to access the resource in atomic units
+  // Amount required to access the resource in smallest units
   amountRequired: number | bigint;
   // Format of the amount required
-  amountRequiredFormat: "atomic" | "formatted";
+  amountRequiredFormat: "smallestUnit" | "humanReadable";
   // Address to pay for accessing the resource
   payToAddress: string;
   // Token contract
@@ -25,11 +25,10 @@ type PaymentDetails = {
   estimatedProcessingTime: number;
   // Extra informations about the payment for the scheme
   extra: Record<string, any> | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
   // Maximum amount required to access the resource in amount ** 10 ** decimals
   maxAmountRequired?: bigint | null;
   // Time in seconds it may be before the payment can be settaled
-  requiredDeadlineSeconds?: number | null; */
+  requiredDeadlineSeconds?: number | null;
 };
 
 type PaymentRequired = {
@@ -39,9 +38,8 @@ type PaymentRequired = {
   accepts: PaymentDetails[];
   // Message for error(s) that occured while processing payment
   error: string | null;
-  /** TODO: FIELDS FOR COMPATIBILITY WITH OTHER PROTOCOLS 
-  // Version of the x402 payment protocol
-  x402Version?: number | null; */
+  // Version of the h402 payment protocol
+  h402Version?: number | null;
 };
 
 type PaymentPayload<T> = {

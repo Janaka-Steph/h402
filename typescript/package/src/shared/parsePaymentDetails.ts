@@ -18,38 +18,44 @@ export async function parsePaymentDetailsForAmount(
   paymentDetails: PaymentDetails,
   client: PublicActions | ReturnType<typeof createSolanaRpc>
 ): Promise<PaymentDetails> {
-  if (paymentDetails.amountRequiredFormat === "atomic") {
-    return {
-      ...paymentDetails,
-    };
+  // Handle backward compatibility with x402: if maxAmountRequired is present, use it for amountRequired
+  const details = {
+    ...paymentDetails,
+    amountRequired: paymentDetails.maxAmountRequired !== undefined && paymentDetails.maxAmountRequired !== null
+      ? paymentDetails.maxAmountRequired
+      : paymentDetails.amountRequired
+  };
+  
+  if (details.amountRequiredFormat === "smallestUnit") {
+    return details;
   }
 
   // Handle Solana tokens
-  if (paymentDetails.namespace === "solana") {
+  if (details.namespace === "solana") {
     try {
       // For native SOL
       if (
-        !paymentDetails.tokenAddress ||
-        paymentDetails.tokenAddress === "11111111111111111111111111111111"
+        !details.tokenAddress ||
+        details.tokenAddress === "11111111111111111111111111111111"
       ) {
         return {
-          ...paymentDetails,
+          ...details,
           amountRequired: BigInt(
-            Math.floor(Number(paymentDetails.amountRequired) * 10 ** solana.NATIVE_SOL_DECIMALS)
+            Math.floor(Number(details.amountRequired) * 10 ** solana.NATIVE_SOL_DECIMALS)
           ),
         };
       }
       
       // For SPL tokens
       const decimals = await solana.getTokenDecimals(
-        paymentDetails.tokenAddress,
-        paymentDetails.networkId
+        details.tokenAddress,
+        details.networkId
       );
       
       return {
-        ...paymentDetails,
+        ...details,
         amountRequired: BigInt(
-          Math.floor(Number(paymentDetails.amountRequired) * 10 ** decimals)
+          Math.floor(Number(details.amountRequired) * 10 ** decimals)
         ),
       };
     } catch (error) {
@@ -61,16 +67,16 @@ export async function parsePaymentDetailsForAmount(
 
   // Handle EVM tokens
   if (
-    paymentDetails.namespace === "eip155" &&
-    paymentDetails.amountRequiredFormat === "formatted" &&
-    paymentDetails.tokenAddress.toLowerCase() === evm.ZERO_ADDRESS.toLowerCase()
+    details.namespace === "eip155" &&
+    details.amountRequiredFormat === "humanReadable" &&
+    details.tokenAddress.toLowerCase() === evm.ZERO_ADDRESS.toLowerCase()
   ) {
-    const decimals = evm.chains[paymentDetails.networkId].nativeTokenDecimals;
+    const decimals = evm.chains[details.networkId].nativeTokenDecimals;
 
     return {
-      ...paymentDetails,
+      ...details,
       amountRequired: BigInt(
-        Math.floor(Number(paymentDetails.amountRequired) * 10 ** decimals)
+        Math.floor(Number(details.amountRequired) * 10 ** decimals)
       ),
     };
   }
@@ -81,20 +87,20 @@ export async function parsePaymentDetailsForAmount(
     }
     
     const decimals = (await client.readContract({
-      address: paymentDetails.tokenAddress as Hex,
+      address: details.tokenAddress as Hex,
       abi: ERC20_ABI,
       functionName: "decimals",
     })) as number;
 
     return {
-      ...paymentDetails,
+      ...details,
       amountRequired: BigInt(
-        Math.floor(Number(paymentDetails.amountRequired) * 10 ** decimals)
+        Math.floor(Number(details.amountRequired) * 10 ** decimals)
       ),
     };
   } catch (error) {
     throw new Error(
-      `Token at address ${paymentDetails.tokenAddress} is not ERC20 compliant: missing decimals function`
+      `Token at address ${details.tokenAddress} is not ERC20 compliant: missing decimals function`
     );
   }
 }

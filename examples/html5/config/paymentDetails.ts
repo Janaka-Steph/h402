@@ -9,7 +9,7 @@ export const paymentDetails: PaymentDetails = {
   namespace: "eip155",
   networkId: "56",
   amountRequired: 0.01,
-  amountRequiredFormat: "formatted",
+  amountRequiredFormat: "humanReadable",
   tokenAddress: "0x55d398326f99059ff775485246999027b3197955",
   resource: "image-generation",
   description: "Access to generated images",
@@ -29,7 +29,7 @@ export const solanaPaymentDetails = {
   namespace: "solana",
   networkId: "mainnet",
   amountRequired: 0.001,
-  amountRequiredFormat: "formatted" as const,
+  amountRequiredFormat: "humanReadable" as const,
   tokenAddress: "11111111111111111111111111111111", // System Program ID for native SOL
   resource: "solana-image-generation",
   description: "Generate AI image with Solana",

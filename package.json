@@ -5,7 +5,8 @@
   "description": "BitGPT's 402 open protocol for blockchain-native payments",
   "scripts": {
     "build:package": "pnpm --filter @bit-gpt/h402 build",
-    "dev:example": "pnpm build && pnpm --filter example dev",
+    "dev:example:react": "pnpm build:package && cd examples/react && pnpm run dev",
+    "dev:example:html5": "pnpm build:package && cd examples/html5 && pnpm run dev",
     "build": "pnpm -r build",
     "clean": "pnpm -r clean",
     "test": "pnpm -r test"
