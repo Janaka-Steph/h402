@@ -39,10 +39,25 @@ const createPayment: CreatePaymentFunction = async (
     throw new Error("Payment details namespace is required");
   }
 
-  paymentDetails = await parsePaymentDetailsForAmount(
-    paymentDetails,
-    client.evmClient as PublicActions
-  );
+  // Conditionally use the appropriate client based on the payment namespace
+  if (paymentDetails.namespace === "solana") {
+    if (!client.solanaClient || !client.solanaClient.rpc) {
+      throw new Error("solanaClient with rpc is required for Solana payments");
+    }
+    paymentDetails = await parsePaymentDetailsForAmount(
+      paymentDetails,
+      client.solanaClient.rpc
+    );
+  } else {
+    // Default to EVM client for EVM payments
+    if (!client.evmClient) {
+      throw new Error("evmClient is required for EVM payments");
+    }
+    paymentDetails = await parsePaymentDetailsForAmount(
+      paymentDetails,
+      client.evmClient as PublicActions
+    );
+  }
 
   switch (paymentDetails.namespace) {
     case "evm": {

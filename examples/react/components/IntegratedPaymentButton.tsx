@@ -103,8 +103,23 @@ function ConnectedPaymentButton({
       }
 
       // Create payment details based on the wallet type and provided details
-      const baseDetails = paymentDetails ||
-        (isEvmWallet ? evmPaymentDetails : solanaPaymentDetails) || {
+      let baseDetails;
+      
+      if (paymentDetails) {
+        // If payment details are provided explicitly, use those
+        baseDetails = paymentDetails;
+      } else if (isSolanaWallet) {
+        // For Solana wallets, use the predefined Solana payment details
+        baseDetails = solanaPaymentDetails;
+        console.log("Using Solana payment details:", solanaPaymentDetails);
+      } else {
+        // For EVM wallets, use the predefined EVM payment details
+        baseDetails = evmPaymentDetails;
+      }
+      
+      // Fallback if somehow no details were set
+      if (!baseDetails) {
+        baseDetails = {
           pricingParams: {
             amountRequired: 0.001,
             denomination: "SOL",
@@ -117,16 +132,48 @@ function ConnectedPaymentButton({
           ttl: "3600",
           memo: "Payment",
         };
+      }
 
       // Set the appropriate namespace and networkId based on wallet type
-      const finalPaymentDetails = {
-        ...baseDetails,
-        resource: `payment-${Date.now()}`,
-        // Use the namespace and networkId from baseDetails if available, otherwise use defaults based on wallet type
-        namespace: baseDetails.namespace || (isEvmWallet ? "evm" : "solana"),
-        networkId: baseDetails.networkId || (isEvmWallet ? "56" : "mainnet"),
-        scheme: "exact",
-      };
+      let finalPaymentDetails;
+      
+      if (isSolanaWallet) {
+        // For Solana wallets, ensure we're using the correct Solana settings
+        finalPaymentDetails = {
+          ...baseDetails,
+          // Only override these fields if they're not already set correctly
+          namespace: "solana",
+          networkId: "mainnet",
+          scheme: "exact",
+          // Update the resource to be unique
+          resource: baseDetails.resource ? `${baseDetails.resource}-${Date.now()}` : `payment-${Date.now()}`
+        };
+      } else {
+        // For EVM wallets
+        finalPaymentDetails = {
+          ...baseDetails,
+          namespace: "evm",
+          networkId: "56",
+          scheme: "exact",
+          resource: baseDetails.resource ? `${baseDetails.resource}-${Date.now()}` : `payment-${Date.now()}`
+        };
+      }
+      
+      // Ensure these critical fields are set correctly for Solana
+      if (isSolanaWallet) {
+        console.log("Ensuring Solana payment details are correct");
+        // Double-check that namespace and networkId are set correctly for Solana
+        finalPaymentDetails.namespace = "solana";
+        finalPaymentDetails.networkId = "mainnet";
+      }
+      
+      console.log("Final payment details:", {
+        namespace: finalPaymentDetails.namespace,
+        networkId: finalPaymentDetails.networkId,
+        scheme: finalPaymentDetails.scheme,
+        tokenAddress: finalPaymentDetails.tokenAddress,
+        amountRequired: finalPaymentDetails.amountRequired
+      });
 
       // Set processing status
       setStatus("processing");
@@ -142,17 +189,29 @@ function ConnectedPaymentButton({
       } else if (isSolanaWallet) {
         // For Solana wallets, create proxied RPC client and use the transaction signer
         const proxiedRpc = createProxiedSolanaRpc();
+        console.log("Solana transaction signer:", !!transactionSendingSigner);
+        console.log("Solana wallet address:", account.address);
+        
+        // Ensure we have a valid signAndSendTransaction function
+        const signAndSendTransactionFn = transactionSendingSigner?.signAndSendTransactions;
+        if (!signAndSendTransactionFn) {
+          console.warn("Warning: signAndSendTransaction function is missing");
+        }
+        
         paymentClients = {
           solanaClient: {
             publicKey: account.address,
             rpc: proxiedRpc,
-            signAndSendTransaction:
-              transactionSendingSigner?.signAndSendTransactions,
-          },
-          // Provide the EVM wallet client to satisfy the requirement in createPayment.ts
-          // Cast to any to avoid type errors since we're just satisfying the API requirement
-          evmClient: evmWalletClient as any,
+            signAndSendTransaction: signAndSendTransactionFn,
+          }
+          // No longer need to provide evmClient for Solana payments after our fix
         };
+        
+        console.log("Solana client setup:", {
+          hasPublicKey: !!account.address,
+          hasRpc: !!proxiedRpc,
+          hasSignAndSendTransaction: !!signAndSendTransactionFn
+        });
       } else {
         throw new Error("No supported wallet available");
       }

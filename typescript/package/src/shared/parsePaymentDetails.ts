@@ -16,7 +16,7 @@ const ERC20_ABI = [
 
 export async function parsePaymentDetailsForAmount(
   paymentDetails: PaymentDetails,
-  client: PublicActions | ReturnType<typeof createSolanaRpc>
+  client?: PublicActions | any
 ): Promise<PaymentDetails> {
   // Handle backward compatibility with x402: if maxAmountRequired is present, use it for amountRequired
   const details = {
@@ -86,7 +86,8 @@ export async function parsePaymentDetailsForAmount(
   }
 
   try {
-    if (!("readContract" in client)) {
+    // Skip ERC20 token check if client is not provided or doesn't have readContract method
+    if (!client || !("readContract" in client)) {
       throw new Error("EVM client required for ERC20 token decimals");
     }
 
