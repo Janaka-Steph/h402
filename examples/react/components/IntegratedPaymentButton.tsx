@@ -1,11 +1,10 @@
 "use client";
 
-import {useState, useCallback, useContext, useMemo} from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWalletAccountTransactionSendingSigner } from "@solana/react";
 import { useConnect, UiWalletAccount } from "@wallet-standard/react";
 import { createPayment } from "@bit-gpt/h402";
 import { createProxiedSolanaRpc } from "@/solana/lib/proxiedSolanaRpc";
-import { SelectedWalletAccountContext } from "@/solana/context/SelectedWalletAccountContext";
 
 interface IntegratedPaymentButtonProps {
   /**
@@ -45,72 +44,46 @@ interface IntegratedPaymentButtonProps {
 }
 
 /**
- * A button that connects wallet if needed and processes payment
- * Following the Anza React example app patterns
+ * Inner component that handles payment processing with a connected account
  */
-export default function IntegratedPaymentButton({
-                                                  amount,
-                                                  wallet,
-                                                  prompt,
-                                                  paymentDetails,
-                                                  onSuccess,
-                                                  onError,
-                                                  className = "",
-                                                }: IntegratedPaymentButtonProps) {
-  // Get the selected account from context
-  const [selectedAccount, setSelectedAccount] = useContext(SelectedWalletAccountContext);
-
+function ConnectedPaymentButton({
+  amount,
+  account,
+  paymentDetails,
+  onSuccess,
+  onError,
+  className = "",
+}: {
+  amount: string;
+  account: UiWalletAccount;
+  paymentDetails?: any;
+  onSuccess?: (paymentHeader: string, txHash: string) => void;
+  onError?: (error: Error) => void;
+  className?: string;
+}) {
   // State for tracking payment process
-  const [status, setStatus] = useState<"idle" | "connecting" | "approving" | "processing" | "success" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<
+    "idle" | "approving" | "processing" | "success" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Get the wallet connection hook
-  const [isConnecting, connect] = useConnect(wallet);
-
-  // Create a dummy account for when no account is selected
-  const dummyAccount = useMemo(() => ({
-    address: "",
-    publicKey: new Uint8Array(),
-    chains: ["solana:mainnet"],
-  } as unknown as UiWalletAccount), []);
-
-// Always call the hook unconditionally
+  // Always call hooks at the top level - following Rule #1 of React Hooks
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-    selectedAccount || dummyAccount,
+    account,
     "solana:mainnet"
   );
 
   // Handle the button click
   const handleClick = useCallback(async () => {
-    setError(null);
+    setErrorMessage(null);
 
     try {
-      // Step 1: Connect wallet if needed
-      if (!selectedAccount) {
-        setStatus("connecting");
-
-        // Check if wallet already has accounts
-        if (wallet.accounts.length > 0) {
-          setSelectedAccount(wallet.accounts[0]);
-        } else {
-          // Connect the wallet to get accounts
-          const accounts = await connect();
-
-          if (!accounts || accounts.length === 0) {
-            throw new Error("No accounts available");
-          }
-
-          // Select the first account
-          setSelectedAccount(accounts[0]);
-        }
+      // Ensure we have a transaction signer
+      if (!transactionSendingSigner) {
+        throw new Error("Transaction signer not available");
       }
 
-      // Ensure we have an account and a transaction signer
-      if (!selectedAccount || !transactionSendingSigner) {
-        throw new Error("Wallet not properly connected");
-      }
-
-      // Step 2: Process payment
+      // Process payment
       setStatus("approving");
 
       // Create payment details
@@ -125,12 +98,12 @@ export default function IntegratedPaymentButton({
           },
         },
         ttl: "3600",
-        memo: "Image generation payment",
+        memo: "Payment",
       };
 
       const finalPaymentDetails = {
         ...baseDetails,
-        resource: `image-gen-${Date.now()}`,
+        resource: `payment-${Date.now()}`,
       };
 
       // Create proxied RPC client
@@ -140,21 +113,23 @@ export default function IntegratedPaymentButton({
       setStatus("processing");
 
       // Create payment using the Solana payment library
-      const paymentHeader = await createPayment(
-        finalPaymentDetails,
-        {
-          solanaClient: {
-            publicKey: selectedAccount.address,
-            rpc: proxiedRpc,
-            signAndSendTransaction: transactionSendingSigner?.signAndSendTransactions,
-          },
-        }
-      );
+      const paymentHeader = await createPayment(finalPaymentDetails, {
+        solanaClient: {
+          publicKey: account.address,
+          rpc: proxiedRpc,
+          signAndSendTransaction:
+            transactionSendingSigner?.signAndSendTransactions,
+        },
+      });
 
       // Extract transaction hash from payment header
       let txHash = "";
 
-      if (paymentHeader && typeof paymentHeader === "string" && paymentHeader.includes(":")) {
+      if (
+        paymentHeader &&
+        typeof paymentHeader === "string" &&
+        paymentHeader.includes(":")
+      ) {
         const hashPart = paymentHeader.split(":").pop();
         if (hashPart) {
           txHash = hashPart;
@@ -173,78 +148,141 @@ export default function IntegratedPaymentButton({
 
       // Set error status and message
       setStatus("error");
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(errMsg);
 
       // Call error callback
       if (onError) {
-        onError(err instanceof Error ? err : new Error(errorMessage));
+        onError(err instanceof Error ? err : new Error(errMsg));
       }
     }
-  }, [selectedAccount, setSelectedAccount, wallet, connect, transactionSendingSigner, paymentDetails, prompt, onSuccess, onError]);
+  }, [account, transactionSendingSigner, paymentDetails, onSuccess, onError]);
 
   // Determine button state
-  const isProcessing = status === "connecting" || status === "approving" || status === "processing" || isConnecting;
+  const isProcessing = status === "approving" || status === "processing";
+  const isDisabled = isProcessing;
+
+  // Determine button text based on status
+  const getButtonText = () => {
+    if (status === "approving") return "Approve in Wallet...";
+    if (status === "processing") return "Processing Payment...";
+    return `Pay - ${amount}`;
+  };
+
+  return (
+    <button
+      className={`btn btn-primary ${className} ${isProcessing ? "loading" : ""}`}
+      onClick={handleClick}
+      disabled={isDisabled}
+    >
+      {getButtonText()}
+      {errorMessage && <div className="text-error mt-2">{errorMessage}</div>}
+    </button>
+  );
+}
+
+/**
+ * Main component that handles wallet connection and renders the payment button when connected
+ * Following the Anza React example app patterns
+ */
+export default function IntegratedPaymentButton({
+  amount,
+  wallet,
+  paymentDetails,
+  onSuccess,
+  onError,
+  className = "",
+}: IntegratedPaymentButtonProps) {
+  // State for tracking connection process
+  const [status, setStatus] = useState<
+    "idle" | "connecting" | "connected" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] =
+    useState<UiWalletAccount | null>(null);
+
+  // Get the wallet connection hook - always called at the top level
+  const [isConnecting, connect] = useConnect(wallet);
+
+  // Effect to set the account when wallet accounts are available
+  useEffect(() => {
+    if (wallet?.accounts?.length > 0 && !selectedAccount) {
+      setSelectedAccount(wallet.accounts[0]);
+      setStatus("connected");
+    }
+  }, [wallet, selectedAccount]);
+
+  // Handle the button click to connect wallet
+  const handleConnectClick = useCallback(async () => {
+    setErrorMessage(null);
+
+    try {
+      setStatus("connecting");
+
+      // Check if wallet already has accounts
+      if (wallet.accounts.length > 0) {
+        setSelectedAccount(wallet.accounts[0]);
+        setStatus("connected");
+      } else {
+        // Connect the wallet to get accounts
+        const accounts = await connect();
+
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No accounts available");
+        }
+
+        // Select the first account
+        setSelectedAccount(accounts[0]);
+        setStatus("connected");
+      }
+    } catch (err) {
+      console.error("Wallet connection error:", err);
+
+      // Set error status and message
+      setStatus("error");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(errMsg);
+
+      // Call error callback
+      if (onError) {
+        onError(err instanceof Error ? err : new Error(errMsg));
+      }
+    }
+  }, [wallet, connect, onError]);
+
+  // Determine button state
+  const isProcessing = status === "connecting" || isConnecting;
   const isDisabled = isProcessing;
 
   // Determine button text based on status
   const getButtonText = () => {
     if (isConnecting || status === "connecting") return "Connecting Wallet...";
-    if (status === "approving") return "Approve in Wallet...";
-    if (status === "processing") return "Processing Payment...";
-
-    return selectedAccount
-      ? `Pay - ${amount}`
-      : `Connect Wallet to Pay - ${amount}`;
+    return `Connect Wallet to Pay - ${amount}`;
   };
 
+  // If we have a selected account, render the ConnectedPaymentButton
+  if (selectedAccount) {
+    return (
+      <ConnectedPaymentButton
+        amount={amount}
+        account={selectedAccount}
+        paymentDetails={paymentDetails}
+        onSuccess={onSuccess}
+        onError={onError}
+        className={className}
+      />
+    );
+  }
+
+  // Otherwise render the connect button
   return (
-    <div className="flex flex-col space-y-2">
-      <button
-        className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center transition-colors ${isDisabled ? 'opacity-70 cursor-not-allowed' : ''} ${className}`}
-        onClick={handleClick}
-        disabled={isDisabled}
-        type="button"
-      >
-        {isProcessing && (
-          <svg
-            className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-        )}
-        <span>{getButtonText()}</span>
-        {!isProcessing && <span className="ml-2">→</span>}
-      </button>
-
-      {/* Error message display */}
-      {error && (
-        <div className="text-red-500 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Success message display */}
-      {status === "success" && (
-        <div className="text-green-500 text-sm">
-          Payment successful!
-        </div>
-      )}
-    </div>
+    <button
+      className={`btn btn-primary ${className} ${isProcessing ? "loading" : ""}`}
+      onClick={handleConnectClick}
+      disabled={isDisabled}
+    >
+      {getButtonText()}
+      {errorMessage && <div className="text-error mt-2">{errorMessage}</div>}
+    </button>
   );
 }
