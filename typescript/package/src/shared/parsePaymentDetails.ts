@@ -21,11 +21,13 @@ export async function parsePaymentDetailsForAmount(
   // Handle backward compatibility with x402: if maxAmountRequired is present, use it for amountRequired
   const details = {
     ...paymentDetails,
-    amountRequired: paymentDetails.maxAmountRequired !== undefined && paymentDetails.maxAmountRequired !== null
-      ? paymentDetails.maxAmountRequired
-      : paymentDetails.amountRequired
+    amountRequired:
+      paymentDetails.maxAmountRequired !== undefined &&
+      paymentDetails.maxAmountRequired !== null
+        ? paymentDetails.maxAmountRequired
+        : paymentDetails.amountRequired,
   };
-  
+
   if (details.amountRequiredFormat === "smallestUnit") {
     return details;
   }
@@ -41,17 +43,19 @@ export async function parsePaymentDetailsForAmount(
         return {
           ...details,
           amountRequired: BigInt(
-            Math.floor(Number(details.amountRequired) * 10 ** solana.NATIVE_SOL_DECIMALS)
+            Math.floor(
+              Number(details.amountRequired) * 10 ** solana.NATIVE_SOL_DECIMALS
+            )
           ),
         };
       }
-      
+
       // For SPL tokens
       const decimals = await solana.getTokenDecimals(
         details.tokenAddress,
         details.networkId
       );
-      
+
       return {
         ...details,
         amountRequired: BigInt(
@@ -67,7 +71,7 @@ export async function parsePaymentDetailsForAmount(
 
   // Handle EVM tokens
   if (
-    details.namespace === "eip155" &&
+    details.namespace === "evm" &&
     details.amountRequiredFormat === "humanReadable" &&
     details.tokenAddress.toLowerCase() === evm.ZERO_ADDRESS.toLowerCase()
   ) {
@@ -82,10 +86,10 @@ export async function parsePaymentDetailsForAmount(
   }
 
   try {
-    if (!('readContract' in client)) {
-      throw new Error('EVM client required for ERC20 token decimals');
+    if (!("readContract" in client)) {
+      throw new Error("EVM client required for ERC20 token decimals");
     }
-    
+
     const decimals = (await client.readContract({
       address: details.tokenAddress as Hex,
       abi: ERC20_ABI,

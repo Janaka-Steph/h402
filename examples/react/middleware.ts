@@ -1,5 +1,5 @@
 import { h402Middleware } from "@bit-gpt/h402/next";
-import { paymentDetails } from "./config/paymentDetails";
+import { evmPaymentDetails } from "./config/paymentDetails";
 import { NextResponse, NextRequest } from "next/server";
 
 // Define the middleware configuration
@@ -7,20 +7,20 @@ const middlewareConfig = {
   // Format routes as a RoutesConfig object (mapping route patterns to payment requirements)
   routes: {
     "/api/generate-image": {
-      price: "$" + paymentDetails.amountRequired, // Format as Money type (string with currency symbol)
-      network: paymentDetails.networkId,
-      namespace: paymentDetails.namespace || "evm", // Ensure namespace is a string
+      price: "$" + evmPaymentDetails.amountRequired, // Format as Money type (string with currency symbol)
+      network: evmPaymentDetails.networkId,
+      namespace: evmPaymentDetails.namespace || "evm", // Ensure namespace is a string
       token: {
-        type: 'USDC',
-        address: paymentDetails.tokenAddress,
-        decimals: 6
+        type: "USDC",
+        address: evmPaymentDetails.tokenAddress,
+        decimals: 6,
       },
       config: {
-        description: paymentDetails.description
-      }
-    }
+        description: evmPaymentDetails.description,
+      },
+    },
   },
-  payTo: paymentDetails.payToAddress,
+  payTo: evmPaymentDetails.payToAddress,
 };
 
 // Add Solana configuration if environment variables are available
@@ -97,7 +97,7 @@ const onSuccessHandler = async (
 export const middleware = h402Middleware({
   ...middlewareConfig,
   onSuccess: onSuccessHandler,
-  paywallRoute: '/paywall', // Use the custom ReactJS paywall component
+  paywallRoute: "/paywall", // Use the custom ReactJS paywall component
 });
 
 export const config = {

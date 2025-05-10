@@ -118,7 +118,7 @@ function validateChain(
 ): boolean {
   return (
     payload.networkId === paymentDetails.networkId &&
-    payload.namespace === "eip155"
+    payload.namespace === "evm"
   );
 }
 

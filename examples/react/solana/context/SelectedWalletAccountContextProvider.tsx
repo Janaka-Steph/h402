@@ -19,6 +19,10 @@ function getSavedWalletAccount(wallets: readonly UiWallet[]): UiWalletAccount | 
     // saved wallet, if and when it appears.
     return;
   }
+  // Check if localStorage is available (not in SSR/server environment)
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
   const savedWalletNameAndAddress = localStorage.getItem(STORAGE_KEY);
   if (!savedWalletNameAndAddress || typeof savedWalletNameAndAddress !== 'string') {
     return;
@@ -56,10 +60,13 @@ export function SelectedWalletAccountContextProvider({ children }: { children: R
       const nextWalletAccount =
         typeof setStateAction === 'function' ? setStateAction(prevSelectedWalletAccount) : setStateAction;
       const accountKey = nextWalletAccount ? getUiWalletAccountStorageKey(nextWalletAccount) : undefined;
-      if (accountKey) {
-        localStorage.setItem(STORAGE_KEY, accountKey);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
+      // Only access localStorage in browser environment
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (accountKey) {
+          localStorage.setItem(STORAGE_KEY, accountKey);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
       return nextWalletAccount;
     });

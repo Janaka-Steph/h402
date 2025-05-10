@@ -5,6 +5,11 @@ import { useWalletAccountTransactionSendingSigner } from "@solana/react";
 import { useConnect, UiWalletAccount } from "@wallet-standard/react";
 import { createPayment } from "@bit-gpt/h402";
 import { createProxiedSolanaRpc } from "@/solana/lib/proxiedSolanaRpc";
+import { useEvmWallet } from "@/evm/context/EvmWalletContext";
+import {
+  solanaPaymentDetails,
+  evmPaymentDetails,
+} from "@/config/paymentDetails";
 
 interface IntegratedPaymentButtonProps {
   /**
@@ -67,6 +72,9 @@ function ConnectedPaymentButton({
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Get the EVM wallet client to satisfy the createPayment requirement
+  const { walletClient: evmWalletClient } = useEvmWallet();
+
   // Always call hooks at the top level - following Rule #1 of React Hooks
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
     account,
@@ -78,49 +86,82 @@ function ConnectedPaymentButton({
     setErrorMessage(null);
 
     try {
-      // Ensure we have a transaction signer
-      if (!transactionSendingSigner) {
-        throw new Error("Transaction signer not available");
-      }
-
       // Process payment
       setStatus("approving");
 
-      // Create payment details
-      const baseDetails = paymentDetails || {
-        pricingParams: {
-          amountRequired: 0.001,
-          denomination: "SOL",
-        },
-        receiverParams: {
-          currencyAddresses: {
-            SOL: "YOUR_RECEIVER_ADDRESS", // Replace with actual address
-          },
-        },
-        ttl: "3600",
-        memo: "Payment",
-      };
+      // Determine if this is an EVM wallet or Solana wallet
+      const isEvmWallet = !transactionSendingSigner && evmWalletClient;
+      const isSolanaWallet = !!transactionSendingSigner;
 
+      // Ensure we have the appropriate wallet client
+      if (isEvmWallet && !evmWalletClient) {
+        throw new Error("EVM wallet client not available");
+      }
+
+      if (isSolanaWallet && !transactionSendingSigner) {
+        throw new Error("Solana transaction signer not available");
+      }
+
+      // Create payment details based on the wallet type and provided details
+      const baseDetails = paymentDetails ||
+        (isEvmWallet ? evmPaymentDetails : solanaPaymentDetails) || {
+          pricingParams: {
+            amountRequired: 0.001,
+            denomination: "SOL",
+          },
+          receiverParams: {
+            currencyAddresses: {
+              SOL: "YOUR_RECEIVER_ADDRESS", // Replace with actual address
+            },
+          },
+          ttl: "3600",
+          memo: "Payment",
+        };
+
+      // Set the appropriate namespace and networkId based on wallet type
       const finalPaymentDetails = {
         ...baseDetails,
         resource: `payment-${Date.now()}`,
+        // Use the namespace and networkId from baseDetails if available, otherwise use defaults based on wallet type
+        namespace: baseDetails.namespace || (isEvmWallet ? "evm" : "solana"),
+        networkId: baseDetails.networkId || (isEvmWallet ? "56" : "mainnet"),
+        scheme: "exact",
       };
-
-      // Create proxied RPC client
-      const proxiedRpc = createProxiedSolanaRpc();
 
       // Set processing status
       setStatus("processing");
 
-      // Create payment using the Solana payment library
-      const paymentHeader = await createPayment(finalPaymentDetails, {
-        solanaClient: {
-          publicKey: account.address,
-          rpc: proxiedRpc,
-          signAndSendTransaction:
-            transactionSendingSigner?.signAndSendTransactions,
-        },
-      });
+      // Create payment clients based on wallet type
+      let paymentClients = {};
+
+      if (isEvmWallet) {
+        // For EVM wallets, use the evmWalletClient
+        paymentClients = {
+          evmClient: evmWalletClient,
+        };
+      } else if (isSolanaWallet) {
+        // For Solana wallets, create proxied RPC client and use the transaction signer
+        const proxiedRpc = createProxiedSolanaRpc();
+        paymentClients = {
+          solanaClient: {
+            publicKey: account.address,
+            rpc: proxiedRpc,
+            signAndSendTransaction:
+              transactionSendingSigner?.signAndSendTransactions,
+          },
+          // Provide the EVM wallet client to satisfy the requirement in createPayment.ts
+          // Cast to any to avoid type errors since we're just satisfying the API requirement
+          evmClient: evmWalletClient as any,
+        };
+      } else {
+        throw new Error("No supported wallet available");
+      }
+
+      // Create payment using the h402 payment library
+      const paymentHeader = await createPayment(
+        finalPaymentDetails,
+        paymentClients
+      );
 
       // Extract transaction hash from payment header
       let txHash = "";
@@ -156,7 +197,14 @@ function ConnectedPaymentButton({
         onError(err instanceof Error ? err : new Error(errMsg));
       }
     }
-  }, [account, transactionSendingSigner, paymentDetails, onSuccess, onError]);
+  }, [
+    account,
+    transactionSendingSigner,
+    evmWalletClient,
+    paymentDetails,
+    onSuccess,
+    onError,
+  ]);
 
   // Determine button state
   const isProcessing = status === "approving" || status === "processing";

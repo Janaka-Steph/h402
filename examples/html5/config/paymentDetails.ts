@@ -4,9 +4,9 @@ import { PaymentDetails } from "@bit-gpt/h402/types";
  * Hardcoded payment details for testing
  * Chain: BSC
  */
-export const paymentDetails: PaymentDetails = {
+export const evmPaymentDetails: PaymentDetails = {
   scheme: "exact",
-  namespace: "eip155",
+  namespace: "evm",
   networkId: "56",
   amountRequired: 0.01,
   amountRequiredFormat: "humanReadable",

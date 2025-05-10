@@ -1,12 +1,12 @@
 import { h402Middleware } from "@bit-gpt/h402/next";
-import { paymentDetails } from "./config/paymentDetails";
+import { evmPaymentDetails } from "./config/paymentDetails";
 import { NextResponse, NextRequest } from "next/server";
 
 // Define the middleware configuration
 const middlewareConfig = {
   routes: ["/"],
   // No paywallRoute specified - will use the built-in HTML5 paywall
-  paymentDetails,
+  paymentDetails: evmPaymentDetails,
 };
 
 // Add Solana configuration if environment variables are available

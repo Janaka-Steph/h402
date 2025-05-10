@@ -45,12 +45,12 @@ const createPayment: CreatePaymentFunction = async (
   );
 
   switch (paymentDetails.namespace) {
-    case "eip155": {
+    case "evm": {
       if (!Object.keys(evm.chains).includes(paymentDetails.networkId)) {
         throw new Error(`Unsupported EVM Network: ${paymentDetails.networkId}`);
       }
       if (!client.evmClient) {
-        throw new Error("evmClient is required for EIP-155 payments");
+        throw new Error("evmClient is required for EVM payments");
       }
       if (client.evmClient.chain?.id.toString() !== paymentDetails.networkId) {
         throw new Error(

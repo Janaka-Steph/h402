@@ -104,9 +104,20 @@ export default function PaymentUI({
       setSelectedWallet(solanaWallet || wallets.find(wallet =>
         wallet.chains.some(chain => chain.startsWith("solana:"))
       ));
+    } else if (selectedNetwork.id === "bsc") {
+      // For BSC or other EVM networks - find an EVM compatible wallet (MetaMask, etc.)
+      const evmWallet = wallets.find(wallet =>
+        wallet.chains.some(chain => chain.startsWith("evm:")) &&
+        (wallet.name.toLowerCase().includes("metamask") ||
+         wallet.name.toLowerCase().includes("coinbase") ||
+         wallet.name.toLowerCase().includes("wallet"))
+      );
+
+      setSelectedWallet(evmWallet || wallets.find(wallet =>
+        wallet.chains.some(chain => chain.startsWith("evm:"))
+      ));
     } else {
-      // For BSC or other networks - would need EVM wallet
-      // This is a placeholder - you would need to implement EVM support
+      // For other networks not yet supported
       setSelectedWallet(null);
     }
   }, [selectedNetwork, wallets]);
@@ -283,13 +294,9 @@ export default function PaymentUI({
           onSuccess={handlePaymentSuccess}
           onError={handlePaymentError}
         />
-      ) : selectedNetwork.id !== "solana" ? (
-        <div className="text-yellow-500 text-center p-4 border border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-900/50">
-          Support for {selectedNetwork.name} coming soon. Please select Solana network.
-        </div>
       ) : (
         <div className="text-yellow-500 text-center p-4 border border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-900/50">
-          No compatible wallets found. Please install a Solana wallet extension.
+          No compatible wallets found. Please install a {selectedNetwork.id === "solana" ? "Solana" : "EVM-compatible"} wallet extension.
         </div>
       )}
 

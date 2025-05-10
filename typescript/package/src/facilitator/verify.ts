@@ -38,7 +38,7 @@ async function verify(
 
     // Use the appropriate handler based on namespace
     switch (paymentDetails.namespace) {
-      case "eip155": {
+      case "evm": {
         if (!evm.isChainSupported(paymentDetails.networkId)) {
           return {
             isValid: false,
@@ -50,7 +50,11 @@ async function verify(
 
         switch (payment.scheme) {
           case "exact":
-            return await exact.handlers.evm.verify(client, payment, paymentDetails);
+            return await exact.handlers.evm.verify(
+              client,
+              payment,
+              paymentDetails
+            );
           default:
             return {
               isValid: false,
@@ -62,7 +66,9 @@ async function verify(
         try {
           // Decode the base64 payload
           const decodedPayload = safeBase64Decode(payload);
-          const paymentPayload = JSON.parse(decodedPayload) as ExactSolanaBroadcastPaymentPayload;
+          const paymentPayload = JSON.parse(
+            decodedPayload
+          ) as ExactSolanaBroadcastPaymentPayload;
 
           // Verify the scheme
           if (paymentPayload.scheme !== "exact") {
@@ -73,7 +79,10 @@ async function verify(
           }
 
           // Delegate to the Solana-specific verification handler
-          return await exact.handlers.solana.verify(paymentPayload, paymentDetails);
+          return await exact.handlers.solana.verify(
+            paymentPayload,
+            paymentDetails
+          );
         } catch (error) {
           return {
             isValid: false,
