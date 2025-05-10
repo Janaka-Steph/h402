@@ -138,13 +138,14 @@ function ConnectedPaymentButton({
       let finalPaymentDetails;
       
       if (isSolanaWallet) {
-        // For Solana wallets, ensure we're using the correct Solana settings
+        // For Solana wallets, ensure we're using the correct Solana settings from solanaPaymentDetails
         finalPaymentDetails = {
-          ...baseDetails,
-          // Only override these fields if they're not already set correctly
+          ...solanaPaymentDetails, // Start with the full solanaPaymentDetails to ensure all Solana-specific fields are set
+          // Override only what needs to be customized
           namespace: "solana",
           networkId: "mainnet",
           scheme: "exact",
+          // Use the exact amount from solanaPaymentDetails without overriding
           // Update the resource to be unique
           resource: baseDetails.resource ? `${baseDetails.resource}-${Date.now()}` : `payment-${Date.now()}`
         };
@@ -165,6 +166,12 @@ function ConnectedPaymentButton({
         // Double-check that namespace and networkId are set correctly for Solana
         finalPaymentDetails.namespace = "solana";
         finalPaymentDetails.networkId = "mainnet";
+        // Ensure we're using a valid Solana address format for payToAddress
+        // Replace any EVM-style address with the Solana address from solanaPaymentDetails
+        if (finalPaymentDetails.payToAddress && finalPaymentDetails.payToAddress.startsWith('0x')) {
+          console.log("Replacing EVM address with Solana address");
+          finalPaymentDetails.payToAddress = solanaPaymentDetails.payToAddress;
+        }
       }
       
       console.log("Final payment details:", {

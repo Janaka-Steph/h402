@@ -43,7 +43,6 @@ export default function PaywallPage() {
             prompt={promptParam || ""}
             returnUrl={returnUrl || ""}
             paymentDetails={paymentDetails}
-            amount="$102.00" // Replace with your actual amount
           />
         </div>
       </div>

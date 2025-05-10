@@ -28,8 +28,8 @@ export const solanaPaymentDetails: PaymentDetails = {
   scheme: "exact",
   namespace: "solana",
   networkId: "mainnet",
-  amountRequired: 0.001,
-  amountRequiredFormat: "humanReadable" as const,
+  amountRequired: 10000000, // 0.01 SOL in lamports (0.01 * 10^9)
+  amountRequiredFormat: "smallestUnit" as const,
   tokenAddress: "11111111111111111111111111111111", // System Program ID for native SOL
   resource: "solana-image-generation",
   description: "Generate AI image with Solana",

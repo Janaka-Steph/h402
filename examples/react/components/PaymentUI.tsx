@@ -58,11 +58,6 @@ interface PaymentUIProps {
    * Custom payment details
    */
   paymentDetails?: any;
-
-  /**
-   * Amount to display (e.g., "$0.99")
-   */
-  amount?: string;
 }
 
 /**
@@ -72,8 +67,7 @@ interface PaymentUIProps {
 export default function PaymentUI({
                                     prompt,
                                     returnUrl,
-                                    paymentDetails,
-                                    amount = "$0.99"
+                                    paymentDetails
                                   }: PaymentUIProps) {
   const router = useRouter();
 
@@ -83,6 +77,30 @@ export default function PaymentUI({
   // State for network and coin selection
   const [selectedNetwork, setSelectedNetwork] = useState(NETWORKS[0]);
   const [selectedCoin, setSelectedCoin] = useState(NETWORKS[0].coins[0]);
+  
+  // Derive display amount from payment details
+  const getDisplayAmount = () => {
+    if (!paymentDetails) return "0.01 SOL"; // Default amount if no payment details
+    
+    if (paymentDetails.namespace === "solana") {
+      // For Solana payments
+      const amount = paymentDetails.amountRequired;
+      const format = paymentDetails.amountRequiredFormat;
+      
+      if (format === "smallestUnit") {
+        // Convert from lamports to SOL
+        return `${(Number(amount) / 1000000000).toFixed(format === "smallestUnit" ? 9 : 2)} SOL`;
+      } else {
+        // Already in human readable format
+        return `${Number(amount).toFixed(2)} SOL`;
+      }
+    } else if (paymentDetails.namespace === "evm") {
+      // For EVM payments
+      return `${Number(paymentDetails.amountRequired).toFixed(2)} ${selectedCoin?.id || 'USDT'}`;
+    }
+    
+    return "0.01 SOL"; // Fallback
+  };
 
   // Dropdown state
   const [showNetworkDropdown, setShowNetworkDropdown] = useState(false);
@@ -287,7 +305,7 @@ export default function PaymentUI({
       {/* Payment Button */}
       {selectedWallet ? (
         <IntegratedPaymentButton
-          amount={amount}
+          amount={getDisplayAmount()}
           wallet={selectedWallet}
           prompt={prompt}
           paymentDetails={paymentDetails}
