@@ -4,8 +4,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { EvmWalletProvider } from "@/evm/context/EvmWalletContext";
-import { SelectedWalletAccountProvider } from "@/solana/context/SelectedWalletAccountContext";
-import { SolanaWalletProvider } from "@/solana/context/SolanaWalletContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -39,8 +37,6 @@ export default async function RootLayout({
       >
         <ThemeProvider defaultTheme="system">
           <EvmWalletProvider>
-            <SelectedWalletAccountProvider>
-              <SolanaWalletProvider>
                 <header className="flex justify-between items-center -mb-20 mr-2">
                   <div className="text-2xl font-bold text-white"></div>
                   <div className="flex gap-4 items-center pt-2">
@@ -64,8 +60,6 @@ export default async function RootLayout({
                   </div>
                 </header>
                 {children}
-              </SolanaWalletProvider>
-            </SelectedWalletAccountProvider>
           </EvmWalletProvider>
         </ThemeProvider>
       </body>

@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Paywall from "@/components/Paywall";
+import { useSearchParams } from "next/navigation";
+import PaymentUI from "@/components/PaymentUI";
+import {
+  SelectedWalletAccountContextProvider
+} from "@/solana/context/SelectedWalletAccountContextProvider";
 
 export default function PaywallPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
   const paymentDetailsParam = searchParams.get("paymentDetails");
+  const promptParam = searchParams.get("prompt");
+
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
 
+  // Parse payment details from URL parameter if available
   useEffect(() => {
-    // Parse payment details from URL parameter
     if (paymentDetailsParam) {
       try {
         const decodedDetails = JSON.parse(decodeURIComponent(paymentDetailsParam));
@@ -23,36 +27,26 @@ export default function PaywallPage() {
     }
   }, [paymentDetailsParam]);
 
-  // Handle successful payment completion
-  const handlePaymentComplete = (txHash: string) => {
-    if (returnUrl) {
-      // Add the payment information to the return URL
-      const url = new URL(returnUrl, window.location.origin);
-      url.searchParams.set("402base64", btoa(JSON.stringify({ txHash })));
-      
-      // Redirect back to the original URL with payment info
-      router.push(url.toString());
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-[800px] mx-auto p-8">
-        {/* Render the Paywall component */}
-        <Paywall />
-        
-        {/* Return link */}
-        {returnUrl && (
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => router.push(returnUrl)}
-              className="text-blue-500 hover:text-blue-700 underline"
-            >
-              Cancel and return
-            </button>
-          </div>
-        )}
+    <SelectedWalletAccountContextProvider>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-full max-w-[800px] mx-auto p-8">
+          <h1 className="text-2xl font-semibold mb-2">
+            Complete Payment to Continue
+          </h1>
+
+          <p className="text-gray-500 dark:text-gray-400 text-base mb-8">
+            Connect your wallet and pay a small fee to generate your AI image.
+          </p>
+
+          <PaymentUI
+            prompt={promptParam || ""}
+            returnUrl={returnUrl || ""}
+            paymentDetails={paymentDetails}
+            amount="$102.00" // Replace with your actual amount
+          />
+        </div>
       </div>
-    </div>
+    </SelectedWalletAccountContextProvider>
   );
 }
